@@ -35,6 +35,7 @@ class ProductController extends Controller
                 'description' => $request->input('description'),
                 'slug' => $request->input('slug'),
                 'price' => $request->input('price'),
+                'image' => $request->input('image'),
                 'user_id' => $user->id
             );
 
@@ -73,6 +74,7 @@ class ProductController extends Controller
                 'description' => $request->input('description'),
                 'slug' => $request->input('slug'),
                 'price' => $request->input('price'),
+                'image' => $request->input('image'),
                 'user_id' => $user->id
             );
 
