@@ -1,0 +1,235 @@
+-------------------------Docker Basic Command-------------------------
+แสดง version ของ docker 
+$ docker version
+
+แสดงสถานะของ docker
+$ docker stats 
+
+รายการ Images ทั้งหมด
+$ docker images
+$ docker image ls 
+
+รายการ Container ที่ทำงานอยู่
+$ docker ps
+$ docker ps -a
+
+ดึงรายการ image จาก registry
+$ docker pull <imagename:tag>
+
+ลบรายการ image ที่ไม่ต้องการ
+$ docker rmi <imagename:tag>
+
+ลบรายการ image ทั้งหมด
+$ docker image prune -a
+
+-------------------------Container Management-------------------------
+สร้าง Container
+$ docker create <imagename|id>
+ 
+สร้างและรัน Container (create + start)
+$ docker run <imagename|id>
+ 
+Start/Stop Container
+$ docker [start|stop] <container_id>
+
+Stop All Container
+$ docker stop $(docker ps -a -q)
+
+ลบรายการ Container (ที่ stop แล้ว)
+$ docker rm <container_id>
+
+ลบรายการ Container (ที่ start อยู่)
+$ docker rm -f <container_id>
+
+ลบรายการ Container ทั้งหมดที่ stop อยู่
+$ docker container prune
+
+------->>สร้าง Docker File 
+FROM nginx:latest  
+COPY ./html /usr/share/nginx/html
+------->>คำสั่ง Build image จาก Docker File มาใช้ 
+$ docker build -t mynginx:1.0 .
+
+------->>คำสั่ง Run image ทีสร้างขึ้นมาเป็น Container มาใช้งาน : กำหนด Port Mapping
+$ docker run --name containerName -d -p 8080:80 imageName
+$ docker run --name mywebapp -d -p 8800:80 mynginx:1.0
+
+------->>คำสั่งตรวจสอบ File Compose ถูกต้องหรือไม 
+$ docker-compose config -q 
+
+------->>ทำการสร้าง images และ container ด้วยไฟล์ docker-compose.yaml
+$ docker-compose up -d [อัพ service]
+$ docker-compose stop [หยุด]
+$ docker-compose down [ลบ]
+
+------->>คำสั่งเรียกดูว่ามี Service อะไรทำงานอยู่ใน docker-compose ในไฟล์นี้ **
+$ docker-compose ps
+
+=================Docker Project Laravel 8x=================
+*** 6 services (container) ***
+ - PHP 8.0 (application code)
+ - MySQL 8.0 (database)
+ - NGINX (webserver)
+ - phpMyAdmin (database managment)
+ - Redis (caching)
+ - MailHog (local mail testing)
+
+*** Step1: โครงสร้าง laravel8x Docker Stack ***
+laravel8.dockerstack
+ mysql
+  |--data
+ nginx
+  |--conf
+    |--app.conf
+ redis
+  |--data
+ src
+  |--
+  |--
+ docker-compose.yaml
+ Dockerfile  
+
+*** Step2: คำสั่ง Clone Project Laravel8x ***
+$ git clone https://github.com/laravel/laravel.git -b 8.x src
+
+*** Step3: กำหนด images ใน Dockerfile ***
+#โหลด Base Image PHP 8.0.3
+FROM php:8.0.3-fpm-buster
+
+------->>คำสั่ง Run และติดตั้ง PHP:8.0.3-fpm-buster ลงใน Dockerfile พร้อมบอก Module ว่ามีอะไรบ้าง
+$ docker run php:8.0.3-fpm-buster php -m
+
+*** ติดตั้งเพิ่มเติมเพราะ Laravel8x ที่ต้องต้องใช้งาน ***
+# ติดตั้ง Extension bcmath และ pdo_mysql สำหรับ Laravel 7, 8, 9 และ 10 
+RUN docker-php-ext-install bcmath pdo_mysql
+
+# สั่ง update image และ ติดตั้ง git zip และ unzip pacakage
+RUN apt-get update
+RUN apt-get install -y git zip unzip
+
+# ติดตั้ง NodeJS
+RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - 
+RUN apt-get install -y nodejs
+
+# Copy file composer:latest ไว้ที่ /usr/bin/composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /var/www
+
+EXPOSE 9000
+  
+*** Step4: กำหนด docker-compose.yaml ***
+*** Step5: ตรวจสอบ File docker-compose.yaml ว่าถูกต้องไหม *** 
+$ docker-compose config -q 
+
+*** Step6: ทำการสร้าง images และ container ด้วยไฟล์ docker-compose.yaml ***
+$ docker-compose up -d [อัพ service]
+$ docker-compose stop [หยุด]
+$ docker-compose down [ลบ]
+
+*** Step7: เรียกเข้าไปติดตั้ง library ของ Laravel ในตัว service "App" ***
+$ docker-compose exec app node -v *** เข้าไปดูใน service "App" มีอะไร
+$ docker-compose exec app php artisan
+$ docker-compose exec app composer -v
+
+*** เพื่อลง Package ใน Composer จะได้ไฟล์ vender มาใน laravel
+$ docker-compose exec app composer install 
+ 
+*** Step8: เพิ่มไฟล์ .env 
+*** Step9: คำสั่งในการ Generate APP_KEY ใน .env เพื่อสามารถ run project 
+$ docker-compose exec app php artisan key:generate 
+$ docker-compose exec app php artisan config:cache
+$ docker-compose exec app bash -->> php artisan
+$ docker-compose exec app php artisan migrate
+
+*** Step10: Config Database ใน .env
+ DB_CONNECTION=mysql
+ DB_HOST=db
+ DB_PORT=3306
+ DB_DATABASE=laravel8db
+ DB_USERNAME=admin
+ DB_PASSWORD=1234
+
+*** Step11: Run คำสั่ง php artisan migrate เพื่อสร้างตาราง DB
+*** Step12: เพิ่ม Redis ใน (Caching) Serveice ใน docker-compose.yaml
+*** Step13: ทำการ Up container Redis เข้าไปใหม่
+*** Step14: ทำการติดตั้ง library predis/predis ในตัว laravel 
+$ docker-compose exec app composer require predis/predis
+
+*** Step15: คำสั่ง Config File .env ของ redis
+CACHE_DRIVER=file
+
+REDIS_HOST=redis
+REDIS_PASSWORD=redis
+REDIS_CLIENT=predis
+REDIS_PORT=6379
+
+*** Testing Mailhog ***
+$ docker-compose exec app php artisan make:mail testMail
+
+=================Laravel 8x API Sanctum=================
+*** Step1: ติดตั้งคำสั่ง Laravel UI ***
+$ docker-compose exec app composer require laravel/ui
+
+*** Step2: Generate Auth Scaffolding เพื่อเพิ่มตัว From Login Forget Password ***
+$ docker-compose exec app php artisan ui vue --auth
+
+*** Step3: ติดตั้ง NPM Dependencies เพื่อสร้างตัว Node Modules ***
+$ docker-compose exec app npm install vue-loader@^15.9.7 --save-dev --legacy-peer-deps
+$ docker-compose exec app npm run watch
+
+--------- >> คำสั่งในการลบ Data Base ในฐานข้อมูล  DB :: $ docker-compose exec app php artisan migrate:rollback
+--------- >> คำสั่งในการสร้าง model --migration --controller แบบ api :: $ docker-compose exec app php artisan make:model --migration --controller Product --api
+
+*** Step4: เปิดใช้งาน Sanctum middleware ที่ไฟล์ src\app\Http\Kernel.php ***
+*** Step5: สร้างตัว Controller [index, store, show, update, destroy] แบบ API ***
+*** Step6: สร้างตัว  Route Api และกำหนด ['middleware' => 'auth:sanctum'] ให้แล้วทดสอบยิง API ด้วย Thunder Client ***
+*** Step7: สร้างตัว Register ของตัว API แบบเฉพาะ / สร้าง AuthController.php สำหรับไว้ Register และ Login ***
+$ docker-compose exec app php artisan make:controller AuthController --model=User
+
+*** Step8: ทดสอบตัว API Register PORT::http://localhost:8100/api/register ***
+Headers:: Accept = application/json || User-Agent = Thunder Client (https://www.thunderclient.com)
+Body::Json Content
+{
+    "fullname": "Saifah Phaiwan",
+    "username": "Phaiwan8953",
+    "email": "dev.phaiwan8953@gmail.com",
+    "password": "phaiwan8953",
+    "password_confirmation": "phaiwan8953",
+    "tel": "0800568953",
+    "role": "1"
+}
+
+retrue ค่ากลับมาเมื่อ Register เสร็จ
+{
+  "user": {
+    "fullname": "Saifah Phaiwan",
+    "username": "Phaiwan8953",
+    "email": "dev.phaiwan8953@gmail.com",
+    "tel": "0800568953",
+    "role": "1",
+    "updated_at": "2022-03-28T07:20:29.000000Z",
+    "created_at": "2022-03-28T07:20:29.000000Z",
+    "id": 1
+  },
+  "token": "1|wi4YVVQGkoAZkJDt7yd3kuKdCO9260n3fHrwdRdf"
+}
+
+*** Step8: ทดสอบการยิง API แบบกำหนด Bearer Token ที่ได้มาจากการ Register ***
+--->> 
+ยิงเพื่อไปหาว่ามีรายการ Product โดยต้องผ่านการระบุ Token ของ Users คนนั้นก่อน 
+Bearer 4|GeOuNq7Ap7spvXJCqa6CUO7r1I537OuCTgdL8J7w
+--->> 
+
+=================คำสั่ง Up Project ขึ้น Github=================
+$ git init
+$ git add .
+$ git status
+$ git commit -m "first commit"
+$ git remote add origin https://github.com/saifahpaiwan/laravel8.docker.stack.api.git
+$ git branch -M main
+$ git push -u origin main
+=================คำสั่ง Up Project ขึ้น Github=================
+
+
